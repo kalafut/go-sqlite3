@@ -353,6 +353,7 @@ type SQLiteConn struct {
 	mu          sync.Mutex
 	db          *C.sqlite3
 	loc         *time.Location
+	timeformat  string
 	txlock      string
 	funcs       []*functionInfo
 	aggregators []*aggInfo
@@ -1084,6 +1085,7 @@ func (d *SQLiteDriver) Open(dsn string) (driver.Conn, error) {
 	authSalt := ""
 	mutex := C.int(C.SQLITE_OPEN_FULLMUTEX)
 	txlock := "BEGIN"
+	timeformat := ""
 
 	// PRAGMA's
 	autoVacuum := -1
@@ -1124,6 +1126,14 @@ func (d *SQLiteDriver) Open(dsn string) (driver.Conn, error) {
 		}
 		if val := params.Get("_auth_salt"); val != "" {
 			authSalt = val
+		}
+
+		// _time_format
+		switch val := strings.ToLower(params.Get("_time_format")); val {
+		case "unix", "unix_ms", "":
+			timeformat = val
+		default:
+			return nil, fmt.Errorf("Invalid _time_format: %v, expecting 'unix' or 'unix_ns'", val)
 		}
 
 		// _loc
@@ -1508,7 +1518,7 @@ func (d *SQLiteDriver) Open(dsn string) (driver.Conn, error) {
 	//
 
 	// Create connection to SQLite
-	conn := &SQLiteConn{db: db, loc: loc, txlock: txlock}
+	conn := &SQLiteConn{db: db, loc: loc, txlock: txlock, timeformat: timeformat}
 
 	// Password Cipher has to be registered before authentication
 	if len(authCrypt) > 0 {
@@ -1969,8 +1979,15 @@ func (s *SQLiteStmt) bind(args []namedValue) error {
 					rv = C._sqlite3_bind_blob(s.s, n, unsafe.Pointer(&v[0]), C.int(ln))
 				}
 			case time.Time:
-				b := []byte(v.Format(SQLiteTimestampFormats[0]))
-				rv = C._sqlite3_bind_text(s.s, n, (*C.char)(unsafe.Pointer(&b[0])), C.int(len(b)))
+				switch s.c.timeformat {
+				case "unix":
+					C.sqlite3_bind_int64(s.s, n, C.sqlite3_int64(v.Unix()))
+				case "unix_ms":
+					C.sqlite3_bind_int64(s.s, n, C.sqlite3_int64(v.UnixMilli()))
+				default:
+					b := []byte(v.Format(SQLiteTimestampFormats[0]))
+					rv = C._sqlite3_bind_text(s.s, n, (*C.char)(unsafe.Pointer(&b[0])), C.int(len(b)))
+				}
 			}
 			if rv != C.SQLITE_OK {
 				return s.c.lastError()
