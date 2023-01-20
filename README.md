@@ -29,12 +29,14 @@ I've always preferred the simplicity, compactness, and unambiguity of Unix times
 
 ## Misc
 
-Wondering how to default a column to the current unix timestamp? I can never remember, so here you go:
+This isn't related to the driver but is something I sometimes have to Google. If you want to default a column to the current unix timestamp you can use one of the following:
 
+```sql
+CREATE TABLE foo(ts INTEGER DEFAULT (strftime('%s', 'now')));
 ```
-create table foo(..., ts integer default (strftime('%s', 'now')));
 
-or if using SQLite 3.38.0 (2/2/2022) or later:
+or if using SQLite 3.38.0 (2/2/2022) or later you can also do:
 
-create table f3(..., ts integer default (unixepoch()));
+```sql
+CREATE TABLE f3(ts INTEGER DEFAULT (unixepoch()));
 ```
