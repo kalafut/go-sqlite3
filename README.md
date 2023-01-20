@@ -15,14 +15,26 @@ This is a new option for the DSN:
 db, err := sql.Open("sqlite3", "filename.db?_time_format=<format>")
 ```
 
-Normally `time.Time` values stored as a string in the format: `2006-01-02 15:04:05.999999 -0700 MST`.
+Normally `time.Time` values are stored as a string in the format: `2006-01-02 15:04:05.999999999-07:00`.
 The `_time_format` connection option tells the driver to store times in an integral format:
 
 - `unix` stores the time as a [Unix timestamp](https://en.wikipedia.org/wiki/Unix_time)
-- `unix_ms` stores the time a millisecond-precision Unix timestamp (i.e. integer number of milliseconds since the epoch)
+- `unix_ms` stores the time as a millisecond-precision Unix timestamp (i.e. integer number of milliseconds since the epoch)
 
-Note that "unix milliseconds" is not a SQlite-supported type so you wont be able to use its built in time functions on the data directly. The data is parsable by the driver, however.
+Note that "unix milliseconds" is not a SQlite-supported type so you wont be able to use its built in time functions on the data directly without converting it. The data is parsable by the driver, however.
 
 ## Why?
 
 I've always preferred the simplicity, compactness, and unambiguity of Unix timestamps. I also like using `time.Time` without having to add special handling or distinct types to effect integer storage. Modifying the driver wasn't my first choice but I think it's the simplest.
+
+## Misc
+
+Wondering how to default a column to the current unix timestamp? I can never remember, so here you go:
+
+```
+create table foo(..., ts integer default (strftime('%s', 'now')));
+
+or if using SQLite 3.38.0 (2/2/2022) or later:
+
+create table f3(..., ts integer default (unixepoch()));
+```
