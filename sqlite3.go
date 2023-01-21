@@ -1133,7 +1133,7 @@ func (d *SQLiteDriver) Open(dsn string) (driver.Conn, error) {
 		case "unix", "unix_ms", "":
 			timeformat = val
 		default:
-			return nil, fmt.Errorf("Invalid _time_format: %v, expecting 'unix' or 'unix_ns'", val)
+			return nil, fmt.Errorf("Invalid _time_format: %v, expecting 'unix' or 'unix_ms'", val)
 		}
 
 		// _loc
